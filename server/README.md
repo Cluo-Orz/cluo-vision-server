@@ -94,11 +94,14 @@ docker compose logs -f cluo-server
 npm run typecheck
 npm test
 npm run smoke:main
+npm run smoke:download-chain
 npm run smoke:services
 curl --noproxy "*" http://127.0.0.1:3000/api/health
 ```
 
 `npm run smoke:main` 会启动一个随机端口的临时 BFF，使用临时 JSON 数据文件，通过真实 HTTP 请求跑完注册、登录、统一发现、番剧订阅、下载暂停/恢复、完成下载、入库、播放 session、续播、历史记录和首页。
+
+`npm run smoke:download-chain` 会启动临时 cluo-server，以及假的 AutoBangumi、qBittorrent 和 Jellyfin HTTP 服务，通过真实 HTTP 请求验证服务端编排链路：AutoBangumi 搜索/订阅、远端下载出现、qBittorrent 暂停/恢复、completed 下载触发 Jellyfin 扫描和搜索同步、媒体库出现 Jellyfin 条目、播放解析和 Jellyfin 播放上报。这个命令不下载公网资源，适合在没有 Docker/真实 NAS 的开发机上独立验证服务端链路。
 
 `npm run smoke:services` 会读取当前环境变量，非破坏性检查已配置的真实 AutoBangumi、qBittorrent 和 Jellyfin：状态/搜索/规则/队列、版本/队列、健康/搜索/继续观看；同时校验下载入库自动化的启用状态、轮询间隔和重试间隔。未配置的真实服务默认跳过；设置 `CLUO_REAL_SMOKE_REQUIRE=1` 时，如果一个真实外部服务都没有配置会失败，适合部署验收。
 

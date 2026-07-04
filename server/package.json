@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/tests/**/*.test.js",
     "smoke:main": "tsx scripts/main-flow-smoke.ts",
+    "smoke:download-chain": "tsx scripts/download-chain-smoke.ts",
     "smoke:services": "tsx scripts/real-services-smoke.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
