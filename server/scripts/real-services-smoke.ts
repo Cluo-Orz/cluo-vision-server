@@ -16,13 +16,17 @@ interface CheckResult {
 async function main() {
   const env = loadEnvFiles();
   const config = createConfig();
-  const checks = await Promise.all([
+  const serviceChecks = await Promise.all([
     checkAutoBangumi(config.defaultSettings.autoBangumi),
     checkQBittorrent(config.defaultSettings.qBittorrent),
     checkJellyfin(config.defaultSettings.jellyfin)
   ]);
+  const checks = [
+    ...serviceChecks,
+    checkDownloadImportAutomation(config.downloadImportAutomation)
+  ];
 
-  const configured = checks.filter((item) => item.state !== "skipped");
+  const configured = serviceChecks.filter((item) => item.state !== "skipped");
   const failed = checks.filter((item) => item.state === "failed");
   const requireConfigured = process.env.CLUO_REAL_SMOKE_REQUIRE === "1";
   const noConfiguredFailure =
@@ -187,6 +191,32 @@ async function checkJellyfin(settings: {
   } catch (error) {
     return failed("jellyfin", error);
   }
+}
+
+function checkDownloadImportAutomation(settings: {
+  enabled: boolean;
+  intervalMs: number;
+  retryMs: number;
+}): CheckResult {
+  if (!settings.enabled) {
+    return skipped(
+      "download-automation",
+      "Download import automation is disabled by CLUO_DOWNLOAD_IMPORT_AUTOMATION_ENABLED."
+    );
+  }
+
+  if (settings.intervalMs <= 0 || settings.retryMs < 0) {
+    return failed(
+      "download-automation",
+      "CLUO_DOWNLOAD_IMPORT_AUTOMATION_INTERVAL_MS must be > 0 and CLUO_DOWNLOAD_IMPORT_AUTOMATION_RETRY_MS must be >= 0."
+    );
+  }
+
+  return passed("download-automation", "Download import automation configuration is valid.", {
+    enabled: settings.enabled,
+    intervalMs: settings.intervalMs,
+    retryMs: settings.retryMs
+  });
 }
 
 function skipped(id: string, message: string): CheckResult {
