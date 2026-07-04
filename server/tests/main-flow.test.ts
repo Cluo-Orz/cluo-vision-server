@@ -139,6 +139,15 @@ test("cluo-server main anime flow", async () => {
     assert.equal(progressDetail.json().item.playbackPositionSeconds, 600);
     assert.equal(progressDetail.json().item.watched, undefined);
 
+    const continueItems = await app.inject({
+      method: "GET",
+      url: "/api/library/items?status=continue",
+      headers: auth
+    });
+    assert.equal(continueItems.statusCode, 200);
+    assert.equal(continueItems.json().items.length, 1);
+    assert.equal(continueItems.json().items[0].id, media.id);
+
     const history = await app.inject({
       method: "GET",
       url: "/api/history",
@@ -191,6 +200,42 @@ test("cluo-server main anime flow", async () => {
     assert.equal(completedDetail.json().item.playbackPositionSeconds, 1440);
     assert.equal(completedDetail.json().item.watched, true);
 
+    const watchedItems = await app.inject({
+      method: "GET",
+      url: "/api/library/items?status=watched",
+      headers: auth
+    });
+    assert.equal(watchedItems.statusCode, 200);
+    assert.equal(watchedItems.json().items.length, 1);
+    assert.equal(watchedItems.json().items[0].id, media.id);
+
+    const watchedSearch = await app.inject({
+      method: "GET",
+      url: "/api/library/search?q=%E8%BF%B7%E5%AE%AB&status=watched",
+      headers: auth
+    });
+    assert.equal(watchedSearch.statusCode, 200);
+    assert.equal(watchedSearch.json().items.length, 1);
+    assert.equal(watchedSearch.json().items[0].id, media.id);
+
+    const favorite = await app.inject({
+      method: "POST",
+      url: `/api/library/items/${encodeURIComponent(media.id)}/favorite`,
+      headers: auth,
+      payload: { favorite: true }
+    });
+    assert.equal(favorite.statusCode, 200);
+    assert.equal(favorite.json().item.favorite, true);
+
+    const favoriteItems = await app.inject({
+      method: "GET",
+      url: "/api/library/items?status=favorite",
+      headers: auth
+    });
+    assert.equal(favoriteItems.statusCode, 200);
+    assert.equal(favoriteItems.json().items.length, 1);
+    assert.equal(favoriteItems.json().items[0].id, media.id);
+
     const secondSubscribe = await app.inject({
       method: "POST",
       url: "/api/anime/subscribe",
@@ -209,6 +254,16 @@ test("cluo-server main anime flow", async () => {
       headers: auth
     });
     assert.equal(secondComplete.statusCode, 200);
+    const secondMedia = secondComplete.json().mediaItems[0];
+
+    const unwatchedItems = await app.inject({
+      method: "GET",
+      url: "/api/library/items?status=unwatched",
+      headers: auth
+    });
+    assert.equal(unwatchedItems.statusCode, 200);
+    assert.equal(unwatchedItems.json().items.length, 1);
+    assert.equal(unwatchedItems.json().items[0].id, secondMedia.id);
 
     const related = await app.inject({
       method: "GET",

@@ -66,7 +66,7 @@ http://127.0.0.1:3000
 - 查看 AutoBangumi 状态和订阅规则
 - 同步 Jellyfin Episode 到 Cluo 媒体库
 - 触发 Jellyfin 扫描并同步媒体库
-- 搜索媒体库、查看详情、标记已看和收藏
+- 按全部/续播/未看/已看/收藏筛选媒体库，搜索媒体库、查看详情、标记已看和收藏
 - 创建播放 session，Jellyfin `stream-url` session 会显示可打开的播放流，`external-player` session 会显示 Android intent URI
 - 记录播放进度和查看历史
 
@@ -332,11 +332,13 @@ Authorization: Bearer <token>
 ### 查看媒体库
 
 ```http
-GET /api/library/items?limit=100
+GET /api/library/items?limit=100&status=all
 Authorization: Bearer <token>
 ```
 
 配置 Jellyfin 时会实时查询 Jellyfin Episode 并 upsert 到本地缓存；Jellyfin 暂时不可达时回退到本地缓存。未配置 Jellyfin 时只返回本地 `local-dev` 或已同步条目。
+
+`status` 可选值为 `all`、`continue`、`unwatched`、`watched`、`favorite`，默认 `all`。非 `all` 筛选会在 Jellyfin/本地返回条目之后按 Cluo 归一化字段过滤，用于电视端媒体库快速切换“续播、未看、已看、收藏”。
 
 同步 Jellyfin Episode 到 Cluo 媒体库：
 
@@ -359,11 +361,11 @@ Content-Type: application/json
 搜索媒体库：
 
 ```http
-GET /api/library/search?q=迷宫&limit=50
+GET /api/library/search?q=迷宫&limit=50&status=all
 Authorization: Bearer <token>
 ```
 
-配置 Jellyfin 时会透传到 Jellyfin Episode 搜索，并把返回条目 upsert 到 Cluo 媒体库；未配置 Jellyfin 时搜索本地已同步条目。
+配置 Jellyfin 时会透传到 Jellyfin Episode 搜索，并把返回条目 upsert 到 Cluo 媒体库；未配置 Jellyfin 时搜索本地已同步条目。`status` 含义与媒体库列表一致。
 
 查看单个媒体详情：
 

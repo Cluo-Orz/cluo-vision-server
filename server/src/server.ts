@@ -85,8 +85,13 @@ const jellyfinLibrarySyncSchema = z.object({
   scan: z.boolean().optional()
 });
 
+const libraryStatusFilterSchema = z
+  .enum(["all", "continue", "unwatched", "watched", "favorite"])
+  .optional();
+
 const libraryItemsSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(500).optional()
+  limit: z.coerce.number().int().min(1).max(500).optional(),
+  status: libraryStatusFilterSchema
 });
 
 const libraryRelatedSchema = z.object({
@@ -95,7 +100,8 @@ const libraryRelatedSchema = z.object({
 
 const librarySearchSchema = z.object({
   q: z.string().min(1),
-  limit: z.coerce.number().int().min(1).max(100).optional()
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  status: libraryStatusFilterSchema
 });
 
 const libraryWatchedSchema = z.object({

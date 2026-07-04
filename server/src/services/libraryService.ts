@@ -22,22 +22,41 @@ export interface DownloadImportResult extends JellyfinSyncResult {
   message: string;
 }
 
+export type LibraryStatusFilter =
+  | "all"
+  | "continue"
+  | "unwatched"
+  | "watched"
+  | "favorite";
+
 export class LibraryService {
   constructor(private readonly store: JsonStore) {}
 
-  async list(input: { limit?: number } = {}): Promise<MediaItem[]> {
+  async list(
+    input: { limit?: number; status?: LibraryStatusFilter } = {}
+  ): Promise<MediaItem[]> {
     const state = await this.store.read();
     const client = this.jellyfinClient(state.settings);
+    const limit = input.limit ?? 100;
+    const sourceLimit = fetchLimit(input.status, limit);
     if (client) {
       try {
-        const items = await client.listEpisodes({ limit: input.limit ?? 100 });
-        return this.upsert(items);
+        const items = await client.listEpisodes({ limit: sourceLimit });
+        return filterLibraryItems(await this.upsert(items), input.status, limit);
       } catch {
-        return this.localRecentlyAdded(state.mediaItems, input.limit);
+        return filterLibraryItems(
+          this.localRecentlyAdded(state.mediaItems, sourceLimit),
+          input.status,
+          limit
+        );
       }
     }
 
-    return this.localRecentlyAdded(state.mediaItems, input.limit);
+    return filterLibraryItems(
+      this.localRecentlyAdded(state.mediaItems, sourceLimit),
+      input.status,
+      limit
+    );
   }
 
   async listResume(input: { limit?: number } = {}): Promise<MediaItem[]> {
@@ -55,25 +74,37 @@ export class LibraryService {
     return this.localResume(state.mediaItems, input.limit);
   }
 
-  async search(input: { q: string; limit?: number }): Promise<MediaItem[]> {
+  async search(
+    input: { q: string; limit?: number; status?: LibraryStatusFilter }
+  ): Promise<MediaItem[]> {
     const query = input.q.trim();
     if (!query) return [];
 
     const state = await this.store.read();
     const client = this.jellyfinClient(state.settings);
+    const limit = input.limit ?? 50;
+    const sourceLimit = fetchLimit(input.status, limit);
     if (client) {
       try {
         const items = await client.listEpisodes({
           searchTerm: query,
-          limit: input.limit ?? 50
+          limit: sourceLimit
         });
-        return this.upsert(items);
+        return filterLibraryItems(await this.upsert(items), input.status, limit);
       } catch {
-        return this.localSearch(state.mediaItems, query, input.limit);
+        return filterLibraryItems(
+          this.localSearch(state.mediaItems, query, sourceLimit),
+          input.status,
+          limit
+        );
       }
     }
 
-    return this.localSearch(state.mediaItems, query, input.limit);
+    return filterLibraryItems(
+      this.localSearch(state.mediaItems, query, sourceLimit),
+      input.status,
+      limit
+    );
   }
 
   async getItem(itemId: string): Promise<MediaItem | null> {
@@ -280,6 +311,28 @@ export class LibraryService {
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .slice(0, limit);
   }
+}
+
+function fetchLimit(status: LibraryStatusFilter | undefined, limit: number): number {
+  return status && status !== "all" ? Math.max(limit, 100) : limit;
+}
+
+function filterLibraryItems(
+  items: MediaItem[],
+  status: LibraryStatusFilter | undefined,
+  limit: number
+): MediaItem[] {
+  const filtered = items.filter((item) => {
+    if (!status || status === "all") return true;
+    if (status === "continue") {
+      return (item.playbackPositionSeconds ?? 0) > 0 && !item.watched;
+    }
+    if (status === "unwatched") return !item.watched;
+    if (status === "watched") return Boolean(item.watched);
+    if (status === "favorite") return Boolean(item.favorite);
+    return true;
+  });
+  return filtered.slice(0, limit);
 }
 
 function relatedMediaItems(items: MediaItem[], item: MediaItem, limit: number): MediaItem[] {
