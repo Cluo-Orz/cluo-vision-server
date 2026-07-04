@@ -1,0 +1,185 @@
+version: '3.9'
+
+# ============================================================
+# Cluo Vision Server Stack
+# 家庭影院全套 Docker Compose 配置
+#
+# 使用方法:
+#   1. 修改下面的环境变量（密码、路径等）
+#   2. docker compose up -d
+#   3. 访问 http://<server-ip>:8096 (Jellyfin)
+#
+# 前置条件:
+#   - NAS 存储路径 /nas/media 已创建
+#   - Docker Engine 24+ 已安装
+#   - 硬件转码: Intel 核显需要 /dev/dri 设备
+# ============================================================
+
+services:
+  # ===== 反向代理 =====
+  caddy:
+    image: caddy:2-alpine
+    container_name: cluo-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/data:/data
+    restart: unless-stopped
+
+  # ===== 自定义 API 聚合后端 (待开发) =====
+  # cluo-server:
+  #   build: ./server
+  #   container_name: cluo-server
+  #   environment:
+  #     - JELLYFIN_URL=http://jellyfin:8096
+  #     - SONARR_URL=http://sonarr:8989
+  #     - SONARR_API_KEY=${SONARR_API_KEY}
+  #     - RADARR_URL=http://radarr:7878
+  #     - RADARR_API_KEY=${RADARR_API_KEY}
+  #     - QBITTORRENT_URL=http://qbittorrent:8080
+  #     - JELLYSEERR_URL=http://jellyseerr:5055
+  #     - JWT_SECRET=${JWT_SECRET}
+  #   ports:
+  #     - "3000:3000"
+  #   volumes:
+  #     - ./server/data:/data
+  #   restart: unless-stopped
+
+  # ===== 媒体服务器 =====
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: cluo-jellyfin
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_URL:-}
+    ports:
+      - "8096:8096"
+      - "8920:8920"  # HTTPS (optional)
+    volumes:
+      - ./jellyfin/config:/config
+      - ./jellyfin/cache:/cache
+      - ${MEDIA_ROOT:-/nas/media}:/media:ro  # 只读挂载媒体库
+    devices:
+      - /dev/dri:/dev/dri  # 硬件转码 (Intel QSV / VA-API)
+    restart: unless-stopped
+
+  # ===== 媒体请求与发现 =====
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    container_name: cluo-jellyseerr
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "5055:5055"
+    volumes:
+      - ./jellyseerr:/app/config
+    restart: unless-stopped
+
+  # ===== 电视剧自动化 =====
+  sonarr:
+    image: linuxserver/sonarr:latest
+    container_name: cluo-sonarr
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "8989:8989"
+    volumes:
+      - ./sonarr:/config
+      - ${MEDIA_ROOT:-/nas/media}/tv:/tv
+      - ${MEDIA_ROOT:-/nas/media}/downloads:/downloads
+    restart: unless-stopped
+
+  # ===== 电影自动化 =====
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: cluo-radarr
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "7878:7878"
+    volumes:
+      - ./radarr:/config
+      - ${MEDIA_ROOT:-/nas/media}/movies:/movies
+      - ${MEDIA_ROOT:-/nas/media}/downloads:/downloads
+    restart: unless-stopped
+
+  # ===== 索引器管理 =====
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    container_name: cluo-prowlarr
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "9696:9696"
+    volumes:
+      - ./prowlarr:/config
+    restart: unless-stopped
+
+  # ===== 下载客户端 =====
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    container_name: cluo-qbittorrent
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+      - WEBUI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - ./qbittorrent:/config
+      - ${MEDIA_ROOT:-/nas/media}/downloads:/downloads
+    restart: unless-stopped
+
+  # ===== 字幕自动下载 =====
+  bazarr:
+    image: linuxserver/bazarr:latest
+    container_name: cluo-bazarr
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "6767:6767"
+    volumes:
+      - ./bazarr:/config
+      - ${MEDIA_ROOT:-/nas/media}/movies:/movies
+      - ${MEDIA_ROOT:-/nas/media}/tv:/tv
+    restart: unless-stopped
+
+  # ===== Cloudflare 绕过 =====
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: cluo-flaresolverr
+    environment:
+      - LOG_LEVEL=info
+    ports:
+      - "8191:8191"
+    restart: unless-stopped
+
+  # ===== 动漫自动追番 =====
+  autobangumi:
+    image: estrellaxd/auto_bangumi:latest
+    container_name: cluo-autobangumi
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "7892:7892"
+    volumes:
+      - ./autobangumi:/app/config
+      - ${MEDIA_ROOT:-/nas/media}/anime:/app/downloads/anime
+    restart: unless-stopped

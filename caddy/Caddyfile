@@ -1,0 +1,30 @@
+# Caddy 反向代理配置
+# 局域网内使用，统一入口 + 自动 HTTPS
+
+# 通用入口 (按需取消注释)
+# cluo.local {
+#     reverse_proxy cluo-server:3000
+# }
+
+# Jellyfin
+# jellyfin.local {
+#     reverse_proxy jellyfin:8096
+# }
+
+# 或者使用端口路由方式 (更简单，不需要 DNS):
+:443 {
+    # API 聚合层
+    handle /api/* {
+        reverse_proxy cluo-server:3000
+    }
+
+    # 其他请求默认
+    respond "Cluo Vision Server" 200
+}
+
+# 如果不需要 HTTPS，可以用下面的简化配置替代上面的全部:
+# :80 {
+#     route /api/* {
+#         reverse_proxy cluo-server:3000
+#     }
+# }
