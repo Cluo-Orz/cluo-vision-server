@@ -7,7 +7,8 @@ version: '3.9'
 # 使用方法:
 #   1. 修改下面的环境变量（密码、路径等）
 #   2. docker compose up -d
-#   3. 访问 http://<server-ip>:8096 (Jellyfin)
+#   3. 访问 http://<server-ip>:3000 (cluo-server Dev UI)
+#   4. 访问 http://<server-ip>:8096 (Jellyfin)
 #
 # 前置条件:
 #   - NAS 存储路径 /nas/media 已创建
@@ -26,26 +27,54 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy/data:/data
+    depends_on:
+      - cluo-server
     restart: unless-stopped
 
-  # ===== 自定义 API 聚合后端 (待开发) =====
-  # cluo-server:
-  #   build: ./server
-  #   container_name: cluo-server
-  #   environment:
-  #     - JELLYFIN_URL=http://jellyfin:8096
-  #     - SONARR_URL=http://sonarr:8989
-  #     - SONARR_API_KEY=${SONARR_API_KEY}
-  #     - RADARR_URL=http://radarr:7878
-  #     - RADARR_API_KEY=${RADARR_API_KEY}
-  #     - QBITTORRENT_URL=http://qbittorrent:8080
-  #     - JELLYSEERR_URL=http://jellyseerr:5055
-  #     - JWT_SECRET=${JWT_SECRET}
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ./server/data:/data
-  #   restart: unless-stopped
+  # ===== 自定义 API 聚合后端 =====
+  cluo-server:
+    build: ./server
+    container_name: cluo-server
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+      CLUO_DATA_DIR: /data
+      CLUO_TOKEN_SECRET: ${CLUO_TOKEN_SECRET:-dev-only-change-me-before-production}
+      CLUO_TOKEN_TTL_SECONDS: ${CLUO_TOKEN_TTL_SECONDS:-1209600}
+      CLUO_DOWNLOAD_SIMULATION_MS: ${CLUO_DOWNLOAD_SIMULATION_MS:-1000}
+      AUTO_BANGUMI_URL: ${CLUO_AUTO_BANGUMI_URL:-http://autobangumi:7892}
+      AUTO_BANGUMI_TOKEN: ${AUTO_BANGUMI_TOKEN:-}
+      AUTO_BANGUMI_PROVIDER: ${AUTO_BANGUMI_PROVIDER:-mikan}
+      QBITTORRENT_URL: ${CLUO_QBITTORRENT_URL:-http://qbittorrent:8080}
+      QBITTORRENT_USERNAME: ${QBITTORRENT_USERNAME:-admin}
+      QBITTORRENT_PASSWORD: ${QBITTORRENT_PASSWORD:-}
+      QBITTORRENT_API_KEY: ${QBITTORRENT_API_KEY:-}
+      JELLYFIN_URL: ${CLUO_JELLYFIN_URL:-http://jellyfin:8096}
+      JELLYFIN_TOKEN: ${JELLYFIN_TOKEN:-}
+      JELLYFIN_USER_ID: ${JELLYFIN_USER_ID:-}
+      JELLYFIN_DEVICE_ID: ${JELLYFIN_DEVICE_ID:-cluo-server}
+      PLAYBACK_PROVIDER: ${PLAYBACK_PROVIDER:-local-dev}
+      PLAYBACK_EXTERNAL_PLAYER_PACKAGE: ${PLAYBACK_EXTERNAL_PLAYER_PACKAGE:-}
+      PLAYBACK_EXTERNAL_PLAYER_MIME_TYPE: ${PLAYBACK_EXTERNAL_PLAYER_MIME_TYPE:-video/*}
+    ports:
+      - "${CLUO_SERVER_PORT:-3000}:3000"
+    volumes:
+      - ./server/data:/data
+    depends_on:
+      - jellyfin
+      - qbittorrent
+      - autobangumi
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
 
   # ===== 媒体服务器 =====
   jellyfin:

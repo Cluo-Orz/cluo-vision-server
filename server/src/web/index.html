@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cluo Vision Dev</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Cluo Vision</h1>
+          <p id="serverStatus">连接中</p>
+        </div>
+        <button id="refreshAll" type="button">刷新</button>
+      </header>
+
+      <section class="band auth-band" id="authBand">
+        <div class="section-head">
+          <h2>账号</h2>
+          <span id="authState">未登录</span>
+        </div>
+        <form id="authForm" class="form-row">
+          <input id="username" name="username" autocomplete="username" placeholder="用户名" value="owner" />
+          <input
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="密码"
+            type="password"
+            value="change-me"
+          />
+          <button id="registerBtn" type="button">注册</button>
+          <button type="submit">登录</button>
+        </form>
+      </section>
+
+      <section class="band settings-band">
+        <div class="section-head">
+          <h2>服务</h2>
+          <span id="serviceMeta">未加载</span>
+        </div>
+        <form id="settingsForm" class="settings-grid">
+          <label>
+            <span>AutoBangumi</span>
+            <input id="autoBangumiUrl" name="autoBangumiUrl" placeholder="http://127.0.0.1:7892" />
+          </label>
+          <label>
+            <span>AutoBangumi Token</span>
+            <input id="autoBangumiToken" name="autoBangumiToken" placeholder="留空则保持不变" type="password" />
+          </label>
+          <label>
+            <span>搜索源</span>
+            <input id="autoBangumiProvider" name="autoBangumiProvider" placeholder="mikan" />
+          </label>
+          <label>
+            <span>qBittorrent</span>
+            <input id="qBittorrentUrl" name="qBittorrentUrl" placeholder="http://127.0.0.1:8080" />
+          </label>
+          <label>
+            <span>qBittorrent 用户</span>
+            <input id="qBittorrentUsername" name="qBittorrentUsername" placeholder="admin" />
+          </label>
+          <label>
+            <span>qBittorrent 密码</span>
+            <input id="qBittorrentPassword" name="qBittorrentPassword" placeholder="留空则保持不变" type="password" />
+          </label>
+          <label>
+            <span>qBittorrent API Key</span>
+            <input id="qBittorrentApiKey" name="qBittorrentApiKey" placeholder="v5.2+ 可选，留空则保持不变" type="password" />
+          </label>
+          <label>
+            <span>Jellyfin</span>
+            <input id="jellyfinUrl" name="jellyfinUrl" placeholder="http://127.0.0.1:8096" />
+          </label>
+          <label>
+            <span>Jellyfin Token</span>
+            <input id="jellyfinToken" name="jellyfinToken" placeholder="留空则保持不变" type="password" />
+          </label>
+          <label>
+            <span>Jellyfin User ID</span>
+            <input id="jellyfinUserId" name="jellyfinUserId" placeholder="用户 ID" />
+          </label>
+          <label>
+            <span>Jellyfin 用户名</span>
+            <input id="jellyfinUsername" name="jellyfinUsername" placeholder="用于一键获取 token/userId" />
+          </label>
+          <label>
+            <span>Jellyfin 密码</span>
+            <input id="jellyfinPassword" name="jellyfinPassword" placeholder="不会保存" type="password" />
+          </label>
+          <label>
+            <span>Device ID</span>
+            <input id="jellyfinDeviceId" name="jellyfinDeviceId" placeholder="cluo-server-dev" />
+          </label>
+          <label>
+            <span>播放 Provider</span>
+            <select id="playbackProvider" name="playbackProvider">
+              <option value="local-dev">local-dev</option>
+              <option value="jellyfin">jellyfin</option>
+              <option value="external-player">external-player</option>
+              <option value="kodi">kodi</option>
+            </select>
+          </label>
+          <label>
+            <span>外部播放器包名</span>
+            <input id="externalPlayerPackage" name="externalPlayerPackage" placeholder="可选，例如 is.xyz.mpv" />
+          </label>
+          <label>
+            <span>外部播放器 MIME</span>
+            <input id="externalPlayerMimeType" name="externalPlayerMimeType" placeholder="video/*" />
+          </label>
+          <div class="settings-actions">
+            <button type="submit">保存配置</button>
+            <button id="loginJellyfin" type="button">登录 Jellyfin</button>
+            <button id="loadSettings" type="button">重载配置</button>
+          </div>
+        </form>
+        <div class="sync-row">
+          <input id="jellyfinSyncSearch" placeholder="Jellyfin 同步关键词，可留空" />
+          <input id="jellyfinSyncLimit" inputmode="numeric" placeholder="数量" value="50" />
+          <button id="syncJellyfin" type="button">同步 Jellyfin</button>
+          <button id="scanAndSyncJellyfin" type="button">扫描并同步</button>
+        </div>
+        <div id="providers" class="provider-row"></div>
+        <div id="serviceDiagnostics" class="diagnostic-grid"></div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>找番</h2>
+          <span id="searchMeta">local-dev</span>
+        </div>
+        <form id="searchForm" class="search-row">
+          <input id="searchInput" name="q" placeholder="番剧名" value="迷宫" />
+          <button type="submit">搜索</button>
+        </form>
+        <div id="searchResults" class="grid"></div>
+      </section>
+
+      <section class="band two-col">
+        <div>
+          <div class="section-head">
+            <h2>追番状态</h2>
+            <span id="animeStatusMeta">未加载</span>
+          </div>
+          <div id="animeStatus" class="status-panel">未连接 AutoBangumi</div>
+        </div>
+        <div>
+          <div class="section-head">
+            <h2>订阅规则</h2>
+            <span id="animeRulesMeta">0</span>
+          </div>
+          <div id="animeRules" class="list"></div>
+        </div>
+      </section>
+
+      <section class="band two-col">
+        <div>
+          <div class="section-head">
+            <h2>下载</h2>
+            <span id="downloadMeta">0</span>
+          </div>
+          <div id="downloads" class="list"></div>
+        </div>
+        <div>
+          <div class="section-head">
+            <h2>媒体库</h2>
+            <span id="libraryMeta">0</span>
+          </div>
+          <form id="librarySearchForm" class="mini-search">
+            <input id="librarySearchInput" name="q" placeholder="搜已入库媒体" />
+            <button type="submit">搜索</button>
+          </form>
+          <div id="library" class="list"></div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>详情</h2>
+          <span id="detailMeta">未选择</span>
+        </div>
+        <div id="mediaDetail" class="detail-panel">选择媒体后查看详情</div>
+      </section>
+
+      <section class="band player-band">
+        <div class="section-head">
+          <h2>播放</h2>
+          <span id="playbackMeta">空闲</span>
+        </div>
+        <div class="player">
+          <div class="screen" id="screen">选择媒体后播放</div>
+          <a id="streamLink" class="stream-link" href="#" target="_blank" rel="noreferrer">打开播放流</a>
+          <div class="player-actions">
+            <button id="watch25" type="button" disabled>记录 25%</button>
+            <button id="watch90" type="button" disabled>标记看完</button>
+            <button id="stopPlayback" type="button" disabled>停止播放</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="band">
+        <div class="section-head">
+          <h2>历史</h2>
+          <span id="historyMeta">0</span>
+        </div>
+        <div id="history" class="list"></div>
+      </section>
+    </main>
+
+    <template id="emptyTemplate">
+      <div class="empty">暂无数据</div>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

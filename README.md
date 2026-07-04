@@ -2,11 +2,14 @@
 
 家庭影院服务端，基于 Docker Compose 一键部署。
 
+> 当前 `docker-compose.yml` 已包含 `cluo-server` BFF 和番剧主链路依赖服务。注册登录、番剧发现/订阅、下载队列、Jellyfin 媒体库、播放解析、观看历史这些核心 API 已可本地验证；真实 Docker 环境、真实媒体库和电视端播放器拉起仍需要在目标机器上做部署验收。
+
 ## 服务栈
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
 | **Caddy** | 80/443 | 反向代理 + HTTPS |
+| **cluo-server** | 3000 | Cluo BFF / API 聚合层 / Dev UI |
 | **Jellyfin** | 8096 | 媒体服务器（刮削、转码、播放） |
 | **Jellyseerr** | 5055 | 媒体请求与发现 |
 | **Sonarr** | 8989 | 电视剧自动下载管理 |
@@ -16,6 +19,21 @@
 | **Bazarr** | 6767 | 字幕自动下载 |
 | **AutoBangumi** | 7892 | 动漫自动追番 |
 | **FlareSolverr** | 8191 | 绕过 Cloudflare 防护 |
+
+## 本地 BFF 开发
+
+如不使用 Docker，可直接运行 `server/` 在本机调试核心 API：
+
+```bash
+cd server
+npm install --registry=https://registry.npmmirror.com
+npm test
+npm run dev
+```
+
+本地 BFF 启动时会自动读取 `server/.env` 和仓库根目录 `.env`，系统环境变量优先。
+
+详见 [`server/README.md`](server/README.md)。
 
 ## 快速开始
 
@@ -49,18 +67,38 @@ cp .env.example .env
 docker compose up -d
 ```
 
+启动后先检查 BFF：
+
+```bash
+curl http://<server-ip>:3000/api/health
+```
+
+Flutter/Android 客户端的服务端地址填写：
+
+```text
+http://<server-ip>:3000
+```
+
+如果使用 Caddy 的 HTTPS 入口，API 也会被代理到：
+
+```text
+https://<server-ip>/api
+```
+
 ### 4. 初始化各服务
 
 启动后按顺序配置：
 
-1. **Jellyfin** — `http://<ip>:8096` — 创建管理员账号，添加媒体库
-2. **qBittorrent** — `http://<ip>:8080` — 默认账号 `admin`/`adminadmin`，修改密码
-3. **Prowlarr** — `http://<ip>:9696` — 添加 BT/PT 索引器，配置 FlareSolverr (`http://flaresolverr:8191`)
-4. **Sonarr** — `http://<ip>:8989` — 添加下载客户端 (qBittorrent)，添加 root 文件夹
-5. **Radarr** — `http://<ip>:7878` — 同上
-6. **Jellyseerr** — `http://<ip>:5055` — 连接 Jellyfin + Sonarr + Radarr
-7. **Bazarr** — `http://<ip>:6767` — 连接 Sonarr + Radarr，配置字幕源
-8. **AutoBangumi** — `http://<ip>:7892` — 配置蜜柑计划 RSS，连接 qBittorrent
+1. **cluo-server** — `http://<ip>:3000` — 打开 Dev UI，注册 Cluo 管理员账号
+2. **Jellyfin** — `http://<ip>:8096` — 创建管理员账号，添加媒体库
+3. **qBittorrent** — `http://<ip>:8080` — 初始密码以容器日志/首次启动提示为准，登录后立即修改密码
+4. **AutoBangumi** — `http://<ip>:7892` — 配置蜜柑计划 RSS，连接 qBittorrent
+5. **cluo-server 设置页** — 登录 Jellyfin，配置 qBittorrent 密码，确认系统诊断为 ready
+6. **Prowlarr** — `http://<ip>:9696` — 添加 BT/PT 索引器，配置 FlareSolverr (`http://flaresolverr:8191`)
+7. **Sonarr** — `http://<ip>:8989` — 添加下载客户端 (qBittorrent)，添加 root 文件夹
+8. **Radarr** — `http://<ip>:7878` — 同上
+9. **Jellyseerr** — `http://<ip>:5055` — 连接 Jellyfin + Sonarr + Radarr
+10. **Bazarr** — `http://<ip>:6767` — 连接 Sonarr + Radarr，配置字幕源
 
 ### 5. 连接 Prowlarr → Sonarr/Radarr
 
@@ -91,7 +129,7 @@ cluo-vision-server/
 ├── .gitignore
 ├── caddy/
 │   └── Caddyfile           # 反向代理配置
-├── server/                 # cluo-vision-server (Go API 聚合层)
+├── server/                 # cluo-server (BFF / API 聚合层，番剧主链路已可本地验证)
 └── README.md
 ```
 
@@ -139,6 +177,7 @@ docker compose up -d
 
 # 查看日志
 docker compose logs -f
+docker compose logs -f cluo-server
 
 # 重启单个服务
 docker compose restart jellyfin
