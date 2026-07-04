@@ -140,6 +140,9 @@ test("system status diagnoses configured services without leaking tokens", async
           assert.equal(body.items.find((item: { id: string }) => item.id === "autobangumi").state, "ready");
           assert.equal(body.items.find((item: { id: string }) => item.id === "qbittorrent").state, "ready");
           assert.equal(body.items.find((item: { id: string }) => item.id === "jellyfin").state, "ready");
+          const automation = body.items.find((item: { id: string }) => item.id === "download-automation");
+          assert.equal(automation.state, "ready");
+          assert.equal(automation.details.enabled, true);
           assert.equal(body.items.find((item: { id: string }) => item.id === "playback").state, "ready");
           assert.equal(JSON.stringify(body).includes("jf-token"), false);
           assert.equal(JSON.stringify(body).includes("ab-token"), false);
@@ -204,9 +207,108 @@ test("system status marks reserved playback providers as degraded", async () => 
       assert.equal(body.items.find((item: { id: string }) => item.id === "autobangumi").state, "not-configured");
       assert.equal(body.items.find((item: { id: string }) => item.id === "qbittorrent").state, "not-configured");
       assert.equal(body.items.find((item: { id: string }) => item.id === "jellyfin").state, "not-configured");
+      assert.equal(body.items.find((item: { id: string }) => item.id === "download-automation").state, "ready");
       const playback = body.items.find((item: { id: string }) => item.id === "playback");
       assert.equal(playback.state, "degraded");
       assert.match(playback.message, /reserved/);
+    } finally {
+      await app.close();
+    }
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("system status reports disabled download import automation as degraded", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "cluo-server-"));
+
+  try {
+    const app = await createServer(
+      createConfig({
+        dataFile: path.join(dataDir, "db.json"),
+        tokenSecret: "test-secret",
+        downloadImportAutomation: {
+          enabled: false
+        }
+      })
+    );
+
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/api/auth/register",
+        payload: {
+          username: "owner",
+          password: "correct-horse-battery-staple"
+        }
+      });
+      const auth = { authorization: `Bearer ${register.json().token as string}` };
+
+      const status = await app.inject({
+        method: "GET",
+        url: "/api/system/status",
+        headers: auth
+      });
+
+      assert.equal(status.statusCode, 200);
+      const body = status.json();
+      assert.equal(body.overall, "degraded");
+      const automation = body.items.find((item: { id: string }) => item.id === "download-automation");
+      assert.equal(automation.state, "degraded");
+      assert.equal(automation.configured, false);
+      assert.equal(automation.reachable, false);
+      assert.equal(automation.details.enabled, false);
+      assert.match(automation.message, /disabled/);
+    } finally {
+      await app.close();
+    }
+  } finally {
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test("system status reports invalid download import timing as degraded", async () => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "cluo-server-"));
+
+  try {
+    const app = await createServer(
+      createConfig({
+        dataFile: path.join(dataDir, "db.json"),
+        tokenSecret: "test-secret",
+        downloadImportAutomation: {
+          intervalMs: 0,
+          retryMs: -1
+        }
+      })
+    );
+
+    try {
+      const register = await app.inject({
+        method: "POST",
+        url: "/api/auth/register",
+        payload: {
+          username: "owner",
+          password: "correct-horse-battery-staple"
+        }
+      });
+      const auth = { authorization: `Bearer ${register.json().token as string}` };
+
+      const status = await app.inject({
+        method: "GET",
+        url: "/api/system/status",
+        headers: auth
+      });
+
+      assert.equal(status.statusCode, 200);
+      const body = status.json();
+      assert.equal(body.overall, "degraded");
+      const automation = body.items.find((item: { id: string }) => item.id === "download-automation");
+      assert.equal(automation.state, "degraded");
+      assert.equal(automation.configured, false);
+      assert.equal(automation.reachable, false);
+      assert.equal(automation.details.intervalMs, 0);
+      assert.equal(automation.details.retryMs, -1);
+      assert.match(automation.message, /invalid/);
     } finally {
       await app.close();
     }

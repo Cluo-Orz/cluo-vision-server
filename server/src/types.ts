@@ -209,7 +209,13 @@ export interface PlaybackTarget {
 export type ServiceHealthState = "ready" | "not-configured" | "unreachable" | "degraded";
 
 export interface ServiceHealth {
-  id: "cluo-server" | "autobangumi" | "qbittorrent" | "jellyfin" | "playback";
+  id:
+    | "cluo-server"
+    | "autobangumi"
+    | "qbittorrent"
+    | "jellyfin"
+    | "playback"
+    | "download-automation";
   label: string;
   configured: boolean;
   reachable: boolean;

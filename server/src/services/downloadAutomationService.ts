@@ -36,7 +36,7 @@ export class DownloadAutomationService {
   ) {}
 
   start(): void {
-    if (!this.config.enabled || this.timer) return;
+    if (!this.config.enabled || this.timer || this.config.intervalMs <= 0) return;
     this.timer = setInterval(() => {
       void this.runOnce().catch(() => {
         // Background automation must not crash the BFF. Diagnostics are exposed

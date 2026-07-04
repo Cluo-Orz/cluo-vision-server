@@ -60,7 +60,7 @@ http://127.0.0.1:3000
 
 - 注册 / 登录
 - 配置 AutoBangumi、qBittorrent、Jellyfin 和首选播放 Provider；Jellyfin 可用用户名/密码登录一次自动写入 token/userId
-- 查看 AutoBangumi、qBittorrent、Jellyfin、Playback Provider 的连接诊断
+- 查看 AutoBangumi、qBittorrent、Jellyfin、后台入库自动化和 Playback Provider 的连接诊断
 - 搜索番剧、订阅、查看下载进度、暂停/恢复下载
 - 对已完成下载执行入库：触发 Jellyfin 扫描，并按下载标题同步匹配到的 Episode
 - 查看 AutoBangumi 状态和订阅规则
@@ -270,7 +270,7 @@ Authorization: Bearer <token>
 
 批量入口会跳过未完成任务，并为每个已完成任务执行与单任务入库相同的 Jellyfin 扫描和候选词匹配，返回 `total`、`imported`、`pending`、`failed`、`synced`、`items` 和逐项 `results`。
 
-cluo-server 默认还会在后台按 `CLUO_DOWNLOAD_IMPORT_AUTOMATION_INTERVAL_MS` 轮询 completed 下载并自动执行同样的入库逻辑；成功导入后不会重复处理，`pending-scan` 或 `not-configured` 会按 `CLUO_DOWNLOAD_IMPORT_AUTOMATION_RETRY_MS` 节流重试。部署验收时也可以手动触发一次后台自动化：
+cluo-server 默认还会在后台按 `CLUO_DOWNLOAD_IMPORT_AUTOMATION_INTERVAL_MS` 轮询 completed 下载并自动执行同样的入库逻辑；成功导入后不会重复处理，`pending-scan` 或 `not-configured` 会按 `CLUO_DOWNLOAD_IMPORT_AUTOMATION_RETRY_MS` 节流重试。`/api/system/status` 会暴露 `download-automation` 诊断项，部署时可直接确认自动入库是否启用、轮询间隔和重试间隔是否有效。部署验收时也可以手动触发一次后台自动化：
 
 ```http
 POST /api/automation/download-import/run

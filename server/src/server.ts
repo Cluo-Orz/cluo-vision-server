@@ -152,7 +152,7 @@ export async function createServer(config: AppConfig) {
   const libraryService = new LibraryService(store);
   const discoveryService = new DiscoveryService(store, libraryService, animeService);
   const playbackService = new PlaybackService(store, historyService);
-  const serviceHealthService = new ServiceHealthService(store);
+  const serviceHealthService = new ServiceHealthService(store, config);
   const downloadAutomationService = new DownloadAutomationService(
     animeService,
     libraryService,

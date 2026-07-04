@@ -1,3 +1,4 @@
+import type { AppConfig } from "../config.js";
 import type { JsonStore } from "../store/jsonStore.js";
 import type { ServiceHealth, ServiceSettings } from "../types.js";
 import { AutoBangumiClient } from "./autoBangumiClient.js";
@@ -13,7 +14,10 @@ export interface SystemStatus {
 }
 
 export class ServiceHealthService {
-  constructor(private readonly store: JsonStore) {}
+  constructor(
+    private readonly store: JsonStore,
+    private readonly config: AppConfig
+  ) {}
 
   async status(): Promise<SystemStatus> {
     const state = await this.store.read();
@@ -38,6 +42,7 @@ export class ServiceHealthService {
       autoBangumi,
       qBittorrent,
       jellyfin,
+      this.checkDownloadAutomation(checkedAt),
       this.checkPlayback(state.settings, jellyfin, checkedAt)
     ];
 
@@ -213,6 +218,35 @@ export class ServiceHealthService {
         checkedAt
       };
     }
+  }
+
+  private checkDownloadAutomation(checkedAt: string): ServiceHealth {
+    const automation = this.config.downloadImportAutomation;
+    const invalidInterval = automation.intervalMs <= 0;
+    const invalidRetry = automation.retryMs < 0;
+    const configured = automation.enabled && !invalidInterval && !invalidRetry;
+    const state: ServiceHealth["state"] = configured ? "ready" : "degraded";
+    const message = automation.enabled
+      ? configured
+        ? `Completed download auto-import is enabled; polling every ${automation.intervalMs}ms and retrying after ${automation.retryMs}ms.`
+        : "Completed download auto-import is enabled, but interval/retry timing is invalid."
+      : "Completed download auto-import is disabled; use manual import actions or enable CLUO_DOWNLOAD_IMPORT_AUTOMATION_ENABLED.";
+
+    return {
+      id: "download-automation",
+      label: "Download import automation",
+      configured,
+      reachable: configured,
+      state,
+      requiredFor: ["automatic-download-import", "jellyfin-library-sync"],
+      message,
+      checkedAt,
+      details: {
+        enabled: automation.enabled,
+        intervalMs: automation.intervalMs,
+        retryMs: automation.retryMs
+      }
+    };
   }
 
   private checkPlayback(
