@@ -89,6 +89,10 @@ const libraryItemsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional()
 });
 
+const libraryRelatedSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).optional()
+});
+
 const librarySearchSchema = z.object({
   q: z.string().min(1),
   limit: z.coerce.number().int().min(1).max(100).optional()
@@ -469,6 +473,21 @@ export async function createServer(config: AppConfig) {
       }
 
       return { item };
+    }
+  );
+
+  app.get<{ Params: { id: string } }>(
+    "/api/library/items/:id/related",
+    { preHandler: authenticate },
+    async (request, reply) => {
+      const query = libraryRelatedSchema.parse(request.query);
+      const item = await libraryService.getItem(request.params.id);
+      if (!item) {
+        await reply.code(404).send({ error: "Media item not found" });
+        return;
+      }
+
+      return { item, items: await libraryService.related(item.id, query.limit) };
     }
   );
 

@@ -374,6 +374,15 @@ Authorization: Bearer <token>
 
 Jellyfin 条目会读取最新详情和 `UserData`，返回 `overview`、`genres`、`year`、`communityRating`、`playbackPositionSeconds`、`watched`、`favorite` 等字段。
 
+相关推荐：
+
+```http
+GET /api/library/items/<media item id>/related?limit=8
+Authorization: Bearer <token>
+```
+
+相关推荐基于已同步/本地缓存的媒体库生成，同一番剧优先，其次按类型、标签和最近入库排序；不会访问额外外部推荐服务。
+
 标记已看：
 
 ```http

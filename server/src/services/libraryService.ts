@@ -98,6 +98,14 @@ export class LibraryService {
     return local ?? null;
   }
 
+  async related(itemId: string, limit = 8): Promise<MediaItem[]> {
+    const state = await this.store.read();
+    const item = state.mediaItems.find((media) => media.id === itemId);
+    if (!item) return [];
+
+    return relatedMediaItems(state.mediaItems, item, limit);
+  }
+
   async setWatched(itemId: string, watched: boolean): Promise<MediaItem | null> {
     const state = await this.store.read();
     const local = state.mediaItems.find((item) => item.id === itemId);
@@ -272,6 +280,35 @@ export class LibraryService {
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
       .slice(0, limit);
   }
+}
+
+function relatedMediaItems(items: MediaItem[], item: MediaItem, limit: number): MediaItem[] {
+  const genres = new Set((item.genres ?? []).map((value) => value.toLowerCase()));
+
+  return items
+    .filter((candidate) => candidate.id !== item.id)
+    .map((candidate) => ({
+      item: candidate,
+      score: relatedScore(candidate, item, genres)
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return Date.parse(b.item.createdAt) - Date.parse(a.item.createdAt);
+    })
+    .map((entry) => entry.item)
+    .slice(0, limit);
+}
+
+function relatedScore(candidate: MediaItem, item: MediaItem, genres: Set<string>): number {
+  let score = 0;
+  if (candidate.animeId && candidate.animeId === item.animeId) score += 100;
+  if (candidate.type === item.type) score += 10;
+  for (const genre of candidate.genres ?? []) {
+    if (genres.has(genre.toLowerCase())) score += 5;
+  }
+  if (candidate.source === item.source) score += 1;
+  return score;
 }
 
 function stripJellyfinPrefix(itemId: string): string {

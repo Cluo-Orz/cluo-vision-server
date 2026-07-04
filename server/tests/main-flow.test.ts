@@ -191,6 +191,35 @@ test("cluo-server main anime flow", async () => {
     assert.equal(completedDetail.json().item.playbackPositionSeconds, 1440);
     assert.equal(completedDetail.json().item.watched, true);
 
+    const secondSubscribe = await app.inject({
+      method: "POST",
+      url: "/api/anime/subscribe",
+      headers: auth,
+      payload: {
+        title: "葬送的芙莉莲",
+        provider: "local-dev",
+        rssUrl: "mock://rss/frieren"
+      }
+    });
+    assert.equal(secondSubscribe.statusCode, 201);
+
+    const secondComplete = await app.inject({
+      method: "POST",
+      url: `/api/anime/downloads/${secondSubscribe.json().download.id as string}/complete`,
+      headers: auth
+    });
+    assert.equal(secondComplete.statusCode, 200);
+
+    const related = await app.inject({
+      method: "GET",
+      url: `/api/library/items/${encodeURIComponent(media.id)}/related`,
+      headers: auth
+    });
+    assert.equal(related.statusCode, 200);
+    assert.equal(related.json().item.id, media.id);
+    assert.equal(related.json().items.length, 1);
+    assert.match(related.json().items[0].title, /芙莉莲/);
+
     const home = await app.inject({
       method: "GET",
       url: "/api/home",
