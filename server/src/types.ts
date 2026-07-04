@@ -48,6 +48,23 @@ export interface AnimeSearchResult {
   raw?: unknown;
 }
 
+export type DiscoverSourceKind = "library" | "anime" | "download" | "playback" | "fallback";
+export type DiscoverSourceStatus = "ready" | "needs-config" | "reserved";
+
+export interface DiscoverSource {
+  id: string;
+  label: string;
+  kind: DiscoverSourceKind;
+  configured: boolean;
+  available: boolean;
+  status: DiscoverSourceStatus;
+  description: string;
+  provider?: string;
+  baseUrl?: string | null;
+  tags: string[];
+  requiredFor: string[];
+}
+
 export type AnimeSubscriptionStatus = "active" | "disabled" | "failed";
 
 export interface AnimeSubscription {

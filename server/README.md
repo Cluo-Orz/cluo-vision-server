@@ -172,6 +172,15 @@ GET /api/discover/recent
 Authorization: Bearer <token>
 ```
 
+已接入来源和能力：
+
+```http
+GET /api/discover/sources
+Authorization: Bearer <token>
+```
+
+返回当前配置下可用于找片、下载和播放的入口，例如 Jellyfin 媒体库、AutoBangumi 番剧、qBittorrent 下载器、当前播放 Provider 和 local-dev 回退。该接口只说明“已接入/已配置”的能力，不替代 `/api/system/status` 的真实连通性诊断。
+
 保留直接番剧搜索入口：
 
 ```http
