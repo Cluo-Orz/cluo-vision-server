@@ -135,6 +135,12 @@ async function main() {
     const completedMedia = asObject(arrayValue(complete.mediaItems, "complete.mediaItems")[0], "media[0]");
     const mediaId = stringValue(completedMedia.id, "media.id");
 
+    const automation = await client.post("/api/automation/download-import/run");
+    assert.equal(automation.totalCompleted, 1);
+    assert.equal(automation.attempted, 1);
+    assert.equal(automation.imported, 1);
+    assert.ok(numberValue(automation.synced, "automation.synced") >= 1);
+
     const imported = await client.post(`/api/downloads/${encodeURIComponent(downloadId)}/import`);
     assert.equal(asObject(arrayValue(imported.items, "import.items")[0], "import.items[0]").id, mediaId);
 
@@ -202,6 +208,7 @@ async function main() {
             "subscribe",
             "download-control",
             "complete",
+            "automation-import",
             "import",
             "library",
             "playback",
