@@ -128,6 +128,10 @@ export class AnimeService {
     ];
   }
 
+  starterSuggestions(limit = 3): AnimeSearchResult[] {
+    return localCatalog.slice(0, limit);
+  }
+
   async subscribe(input: {
     title: string;
     provider?: string;

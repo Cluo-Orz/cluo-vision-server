@@ -310,6 +310,10 @@ export async function createServer(config: AppConfig) {
     return { items: await discoveryService.sources() };
   });
 
+  app.get("/api/discover/trending", { preHandler: authenticate }, async (request) => {
+    return await discoveryService.trending(request.user!.id);
+  });
+
   app.get("/api/anime/search", { preHandler: authenticate }, async (request) => {
     const query = animeSearchSchema.parse(request.query);
     return { results: await animeService.search(query.q, query.provider) };

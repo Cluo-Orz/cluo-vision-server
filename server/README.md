@@ -172,6 +172,15 @@ GET /api/discover/recent
 Authorization: Bearer <token>
 ```
 
+推荐入口：
+
+```http
+GET /api/discover/trending
+Authorization: Bearer <token>
+```
+
+当前返回基于本地事实源生成的电视端快捷入口：最近入库、活跃下载、订阅番剧、最近搜索；如果这些都为空，会返回 local-dev 番剧起步推荐。它不是外部站点热门榜，不会额外访问未验证资源站。
+
 已接入来源和能力：
 
 ```http

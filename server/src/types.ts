@@ -65,6 +65,37 @@ export interface DiscoverSource {
   requiredFor: string[];
 }
 
+export type DiscoverSuggestionKind =
+  | "library"
+  | "download"
+  | "subscription"
+  | "recent-search"
+  | "starter";
+export type DiscoverSuggestionAction = "open-library" | "open-downloads" | "search";
+
+export interface DiscoverSuggestion {
+  id: string;
+  kind: DiscoverSuggestionKind;
+  action: DiscoverSuggestionAction;
+  title: string;
+  subtitle: string;
+  reason: string;
+  query?: string;
+  mediaItemId?: string;
+  downloadId?: string;
+  posterUrl?: string;
+  status?: string;
+}
+
+export interface DiscoverTrending {
+  checkedAt: string;
+  suggestions: DiscoverSuggestion[];
+  recentlyAdded: MediaItem[];
+  activeDownloads: DownloadTask[];
+  subscriptions: AnimeSubscription[];
+  recentSearches: SearchHistoryEntry[];
+}
+
 export type AnimeSubscriptionStatus = "active" | "disabled" | "failed";
 
 export interface AnimeSubscription {

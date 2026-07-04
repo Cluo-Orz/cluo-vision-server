@@ -31,6 +31,20 @@ test("discover search aggregates anime results, library hits, and recent queries
     assert.equal(register.statusCode, 201);
     const auth = { authorization: `Bearer ${register.json().token as string}` };
 
+    const starterTrending = await app.inject({
+      method: "GET",
+      url: "/api/discover/trending",
+      headers: auth
+    });
+    assert.equal(starterTrending.statusCode, 200);
+    assert.equal(starterTrending.json().recentlyAdded.length, 0);
+    assert.equal(
+      starterTrending.json().suggestions.some((item: { kind: string; title: string }) => {
+        return item.kind === "starter" && item.title === "迷宫饭";
+      }),
+      true
+    );
+
     const firstSearch = await app.inject({
       method: "GET",
       url: "/api/discover/search?q=%E8%BF%B7%E5%AE%AB",
@@ -147,6 +161,28 @@ test("discover search aggregates anime results, library hits, and recent queries
     assert.equal(
       sources.find((item: { id: string }) => item.id === "playback-external-player").status,
       "ready"
+    );
+
+    const trending = await app.inject({
+      method: "GET",
+      url: "/api/discover/trending",
+      headers: auth
+    });
+    assert.equal(trending.statusCode, 200);
+    assert.equal(trending.json().recentlyAdded.length, 1);
+    assert.equal(trending.json().subscriptions.length, 1);
+    assert.equal(trending.json().recentSearches[0].query, "迷宫");
+    assert.equal(
+      trending.json().suggestions.some((item: { kind: string; action: string }) => {
+        return item.kind === "library" && item.action === "open-library";
+      }),
+      true
+    );
+    assert.equal(
+      trending.json().suggestions.some((item: { kind: string; query: string }) => {
+        return item.kind === "subscription" && /迷宫/.test(item.query);
+      }),
+      true
     );
 
     await app.close();

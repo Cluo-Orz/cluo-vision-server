@@ -2,8 +2,12 @@ import { randomUUID } from "node:crypto";
 
 import type { JsonStore } from "../store/jsonStore.js";
 import type {
+  AnimeSubscription,
   AnimeSearchResult,
   DiscoverSource,
+  DiscoverSuggestion,
+  DiscoverTrending,
+  DownloadTask,
   MediaItem,
   SearchHistoryEntry,
   ServiceSettings
@@ -71,6 +75,35 @@ export class DiscoveryService {
     return buildSources(state.settings);
   }
 
+  async trending(userId: string): Promise<DiscoverTrending> {
+    const [recentlyAdded, subscriptions, downloads, recentSearches] = await Promise.all([
+      this.libraryService.list({ limit: 8 }),
+      this.animeService.listSubscriptions(),
+      this.animeService.listDownloads(),
+      this.recent(userId, 8)
+    ]);
+
+    const activeDownloads = downloads
+      .filter((download) => download.state !== "completed")
+      .slice(0, 8);
+    const suggestions = buildTrendingSuggestions({
+      recentlyAdded,
+      activeDownloads,
+      subscriptions,
+      recentSearches,
+      starters: this.animeService.starterSuggestions(6)
+    });
+
+    return {
+      checkedAt: new Date().toISOString(),
+      suggestions,
+      recentlyAdded,
+      activeDownloads,
+      subscriptions: subscriptions.slice(0, 8),
+      recentSearches
+    };
+  }
+
   private async record(
     userId: string,
     query: string,
@@ -113,6 +146,101 @@ export class DiscoveryService {
       return userHistory.slice(0, 10);
     });
   }
+}
+
+function buildTrendingSuggestions(input: {
+  recentlyAdded: MediaItem[];
+  activeDownloads: DownloadTask[];
+  subscriptions: AnimeSubscription[];
+  recentSearches: SearchHistoryEntry[];
+  starters: AnimeSearchResult[];
+}): DiscoverSuggestion[] {
+  const suggestions: DiscoverSuggestion[] = [];
+  const seen = new Set<string>();
+  const add = (suggestion: DiscoverSuggestion) => {
+    const key = `${suggestion.action}:${suggestion.query ?? suggestion.mediaItemId ?? suggestion.downloadId ?? suggestion.title}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    suggestions.push(suggestion);
+  };
+
+  for (const item of input.recentlyAdded.slice(0, 4)) {
+    add({
+      id: `library:${item.id}`,
+      kind: "library",
+      action: "open-library",
+      title: item.title,
+      subtitle: item.watched ? "已看" : "最近入库",
+      reason: "可直接进入详情或播放",
+      mediaItemId: item.id,
+      posterUrl: item.posterUrl,
+      status: item.watched ? "watched" : "ready"
+    });
+  }
+
+  for (const download of input.activeDownloads.slice(0, 4)) {
+    add({
+      id: `download:${download.id}`,
+      kind: "download",
+      action: "open-downloads",
+      title: download.title,
+      subtitle: downloadStateLabel(download.state),
+      reason: `${Math.round(download.progress)}% · 查看下载进度`,
+      downloadId: download.id,
+      status: download.state
+    });
+  }
+
+  for (const subscription of input.subscriptions.slice(0, 4)) {
+    add({
+      id: `subscription:${subscription.id}`,
+      kind: "subscription",
+      action: "search",
+      title: subscription.title,
+      subtitle: subscription.provider,
+      reason: subscription.status === "active" ? "已订阅，搜索库内或规则状态" : "订阅需要检查",
+      query: subscription.title,
+      posterUrl: subscription.posterUrl,
+      status: subscription.status
+    });
+  }
+
+  for (const recent of input.recentSearches.slice(0, 4)) {
+    add({
+      id: `recent:${recent.id}`,
+      kind: "recent-search",
+      action: "search",
+      title: recent.query,
+      subtitle: `库内 ${recent.resultCounts.library} · 番剧 ${recent.resultCounts.anime}`,
+      reason: recent.searchCount > 1 ? `已搜索 ${recent.searchCount} 次` : "继续最近搜索",
+      query: recent.query,
+      status: "recent"
+    });
+  }
+
+  for (const starter of input.starters) {
+    add({
+      id: `starter:${starter.id}`,
+      kind: "starter",
+      action: "search",
+      title: starter.title,
+      subtitle: starter.originalTitle ?? starter.provider,
+      reason: "本地开发推荐，可验证发现到订阅主链路",
+      query: starter.title,
+      posterUrl: starter.posterUrl,
+      status: starter.provider
+    });
+  }
+
+  return suggestions.slice(0, 12);
+}
+
+function downloadStateLabel(state: string): string {
+  if (state === "queued") return "等待下载";
+  if (state === "downloading") return "下载中";
+  if (state === "paused") return "已暂停";
+  if (state === "failed") return "下载失败";
+  return state;
 }
 
 function buildSources(settings: ServiceSettings): DiscoverSource[] {
