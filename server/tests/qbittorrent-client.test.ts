@@ -175,3 +175,38 @@ test("QBittorrentClient falls back to v4 pause and resume endpoints", async () =
     ]
   );
 });
+
+test("QBittorrentClient accepts qBittorrent 5.2 login 204 responses", async () => {
+  await withFakeServer(
+    async (request, response) => {
+      const url = new URL(request.url ?? "/", "http://127.0.0.1");
+
+      if (url.pathname === "/api/v2/auth/login") {
+        response.writeHead(204, { "set-cookie": "SID=qbit-session; HttpOnly" });
+        response.end();
+        return;
+      }
+
+      assert.equal(request.headers.cookie, "SID=qbit-session");
+
+      if (url.pathname === "/api/v2/app/version") {
+        response.writeHead(200, { "content-type": "text/plain" });
+        response.end("5.2.2");
+        return;
+      }
+
+      response.writeHead(404);
+      response.end();
+    },
+    async (baseUrl) => {
+      const client = new QBittorrentClient({
+        baseUrl,
+        username: "admin",
+        password: "secret",
+        apiKey: null
+      });
+
+      assert.equal(await client.version(), "5.2.2");
+    }
+  );
+});

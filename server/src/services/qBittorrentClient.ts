@@ -117,7 +117,9 @@ export class QBittorrentClient {
     });
 
     const text = await response.text().catch(() => "");
-    if (!response.ok || !/^ok\.?$/i.test(text.trim())) {
+    const loginSucceeded =
+      response.status === 204 || (response.status === 200 && /^ok\.?$/i.test(text.trim()));
+    if (!loginSucceeded) {
       throw new QBittorrentError(response.status, `qBittorrent login failed: ${text || response.statusText}`);
     }
 
